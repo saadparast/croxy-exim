@@ -25,13 +25,11 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">C</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-900">Croxy Exim</span>
-              <span className="text-xs text-gray-600">Premium Indian Exports</span>
-            </div>
+            <img 
+              src="https://page.gensparksite.com/v1/base64_upload/656480d8b8b69d5d843a3f68b4f58718"
+              alt="Croxy Exim"
+              className="h-12 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}

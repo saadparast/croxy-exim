@@ -24,6 +24,8 @@ import {
 import productsData from '../data/products.json';
 import emailService from '../services/emailService';
 
+const API_URL = 'http://localhost:3001/api';
+
 const Contact = () => {
   const [searchParams] = useSearchParams();
   const requestedProduct = searchParams.get('product');
@@ -47,26 +49,77 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const newRequest = {
-      id: Date.now(),
+    // Prepare data for backend
+    const submissionData = {
       ...formData,
-      timestamp: new Date().toISOString(),
-      status: 'pending'
+      inquiryType: formType,
+      timestamp: new Date().toISOString()
     };
 
-    // Get existing requests
-    const existingRequests = JSON.parse(localStorage.getItem('clientRequests') || '[]');
-    
-    // Add new request
-    const updatedRequests = [...existingRequests, newRequest];
-    
-    // Save to localStorage
-    localStorage.setItem('clientRequests', JSON.stringify(updatedRequests));
-
-    // Send email using emailService
     try {
-      await emailService.sendEmail(formData);
+      // Submit to backend API
+      const response = await fetch(`${API_URL}/inquiries`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(submissionData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSubmitted(true);
+        
+        // Also save to localStorage for backward compatibility
+        const existingRequests = JSON.parse(localStorage.getItem('clientRequests') || '[]');
+        const newRequest = {
+          id: result.id || Date.now(),
+          ...formData,
+          timestamp: new Date().toISOString(),
+          status: 'pending'
+        };
+        const updatedRequests = [...existingRequests, newRequest];
+        localStorage.setItem('clientRequests', JSON.stringify(updatedRequests));
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          country: '',
+          productInterest: '',
+          customProduct: '',
+          quantity: '',
+          deliveryPort: '',
+          targetPrice: '',
+          certifications: [],
+          message: ''
+        });
+        
+        // Reset submitted state after 5 seconds
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        alert('There was an error submitting your request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting inquiry:', error);
+      
+      // Fallback to localStorage if API fails
+      const existingRequests = JSON.parse(localStorage.getItem('clientRequests') || '[]');
+      const newRequest = {
+        id: Date.now(),
+        ...formData,
+        timestamp: new Date().toISOString(),
+        status: 'pending'
+      };
+      const updatedRequests = [...existingRequests, newRequest];
+      localStorage.setItem('clientRequests', JSON.stringify(updatedRequests));
+      
       setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 5000);
+      
       // Reset form
       setFormData({
         name: '',
@@ -82,9 +135,6 @@ const Contact = () => {
         certifications: [],
         message: ''
       });
-    } catch (error) {
-      console.error('Error sending email:', error);
-      alert('There was an error submitting your request. Please try again.');
     }
   };
   const [expandedFaq, setExpandedFaq] = useState(null);

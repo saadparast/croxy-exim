@@ -1,20 +1,44 @@
 module.exports = {
-  apps: [{
-    name: 'indian-export-website',
-    script: 'npx',
-    args: 'vite --host 0.0.0.0 --port 5173',
-    cwd: '/home/user/webapp',
-    env: {
-      NODE_ENV: 'development'
+  apps: [
+    {
+      name: 'croxy-backend',
+      script: 'backend-server.cjs',
+      cwd: '/home/user/webapp',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      error_file: '/home/user/webapp/logs/backend-error.log',
+      out_file: '/home/user/webapp/logs/backend-out.log',
+      log_file: '/home/user/webapp/logs/backend-combined.log',
+      time: true,
+      env: {
+        NODE_ENV: 'development',
+        PORT: 3001,
+        JWT_SECRET: 'croxy-exim-secret-key-2024'
+      }
     },
-    watch: false,
-    instances: 1,
-    exec_mode: 'fork',
-    max_restarts: 10,
-    min_uptime: '10s',
-    error_file: '/home/user/webapp/logs/error.log',
-    out_file: '/home/user/webapp/logs/out.log',
-    log_file: '/home/user/webapp/logs/combined.log',
-    time: true
-  }]
+    {
+      name: 'croxy-frontend',
+      script: 'npm',
+      args: 'run dev',
+      cwd: '/home/user/webapp',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      max_restarts: 5,
+      min_uptime: '10s',
+      error_file: '/home/user/webapp/logs/frontend-error.log',
+      out_file: '/home/user/webapp/logs/frontend-out.log',
+      log_file: '/home/user/webapp/logs/frontend-combined.log',
+      time: true,
+      env: {
+        NODE_ENV: 'development',
+        PORT: 5173
+      }
+    }
+  ]
 };
