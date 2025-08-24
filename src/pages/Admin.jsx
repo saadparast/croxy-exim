@@ -22,7 +22,7 @@ const Admin = () => {
   const handleLogin = (e) => {
     e.preventDefault();
     // Simple password check - replace with proper authentication in production
-    if (e.target.password.value === 'admin123') {
+    if (e.target.password.value === '70709081@MDsaad') {
       setIsAuthenticated(true);
       localStorage.setItem('adminAuth', 'true');
     } else {
@@ -93,8 +93,14 @@ const Admin = () => {
                   <div className="space-y-2">
                     <h3 className="font-bold text-xl">{request.name}</h3>
                     <p className="text-gray-600">Email: {request.email}</p>
-                    <p className="text-gray-600">Product: {request.product}</p>
-                    <p className="text-gray-600">Message: {request.message}</p>
+                    <p className="text-gray-600">Phone: {request.phone || 'N/A'}</p>
+                    <p className="text-gray-600">Company: {request.company || 'N/A'}</p>
+                    <p className="text-gray-600">Country: {request.country || 'N/A'}</p>
+                    <p className="text-gray-600">Product: {request.productInterest || request.product || 'N/A'}</p>
+                    {request.quantity && <p className="text-gray-600">Quantity: {request.quantity}</p>}
+                    {request.deliveryPort && <p className="text-gray-600">Delivery Port: {request.deliveryPort}</p>}
+                    {request.targetPrice && <p className="text-gray-600">Target Price: {request.targetPrice}</p>}
+                    <p className="text-gray-600">Message: {request.message || 'No message provided'}</p>
                     <p className="text-sm text-gray-500">
                       Submitted on: {new Date(request.timestamp).toLocaleString()}
                     </p>
