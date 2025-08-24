@@ -1,640 +1,554 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { 
-  Mail, 
+  Send, 
   Phone, 
+  Mail, 
   MapPin, 
-  Clock, 
-  Send,
-  MessageCircle,
+  Clock,
   Globe,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Package,
-  Truck,
-  Shield,
-  Users,
+  MessageSquare,
+  Building,
+  User,
   FileText,
-  AlertCircle,
-  Leaf
+  Package,
+  CheckCircle
 } from 'lucide-react';
-import productsData from '../data/products.json';
-import emailService from '../services/emailService';
-
-const API_URL = 'http://localhost:3001/api';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Checkbox } from '../components/ui/checkbox';
 
 const Contact = () => {
   const [searchParams] = useSearchParams();
-  const requestedProduct = searchParams.get('product');
-  
-  const [formType, setFormType] = useState('general'); // 'general' or 'product-request'
+  const productId = searchParams.get('product');
+  const productName = searchParams.get('name');
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    country: '',
-    productInterest: requestedProduct || '',
-    customProduct: '',
+    userName: '',
+    userEmail: '',
+    userPhone: '',
+    userCompany: '',
+    userDesignation: '',
+    userCountry: '',
+    userCity: '',
+    enquiryType: 'product',
+    subject: '',
+    message: '',
     quantity: '',
-    deliveryPort: '',
     targetPrice: '',
-    certifications: [],
-    message: ''
+    deliveryPort: '',
+    deliveryTerms: '',
+    paymentTerms: '',
+    productId: productId || '',
+    productName: productName || '',
+    newsletter: false
   });
+
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+
+  const enquiryTypes = [
+    { value: 'product', label: 'Product Enquiry' },
+    { value: 'service', label: 'Service Enquiry' },
+    { value: 'partnership', label: 'Partnership Opportunity' },
+    { value: 'general', label: 'General Enquiry' },
+    { value: 'quote', label: 'Request Quote' },
+    { value: 'bulk', label: 'Bulk Order' }
+  ];
+
+  const countries = [
+    'USA', 'China', 'India', 'Germany', 'Japan', 'UK', 'France', 
+    'Brazil', 'Canada', 'Australia', 'UAE', 'Singapore', 'South Korea',
+    'Italy', 'Spain', 'Mexico', 'Indonesia', 'Turkey', 'Saudi Arabia'
+  ].sort();
+
+  useEffect(() => {
+    if (productId && productName) {
+      setFormData(prev => ({
+        ...prev,
+        productId,
+        productName,
+        subject: `Enquiry for ${productName}`,
+        enquiryType: 'product'
+      }));
+    }
+  }, [productId, productName]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Prepare data for backend
-    const submissionData = {
-      ...formData,
-      inquiryType: formType,
-      timestamp: new Date().toISOString()
-    };
+    setLoading(true);
+    setError('');
+    setSuccess(false);
 
     try {
-      // Submit to backend API
-      const response = await fetch(`${API_URL}/inquiries`, {
+      const response = await fetch('http://localhost:3001/api/enquiries', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(submissionData)
+        body: JSON.stringify(formData)
       });
 
-      const result = await response.json();
+      const data = await response.json();
 
-      if (result.success) {
-        setSubmitted(true);
-        
-        // Also save to localStorage for backward compatibility
-        const existingRequests = JSON.parse(localStorage.getItem('clientRequests') || '[]');
-        const newRequest = {
-          id: result.id || Date.now(),
-          ...formData,
-          timestamp: new Date().toISOString(),
-          status: 'pending'
-        };
-        const updatedRequests = [...existingRequests, newRequest];
-        localStorage.setItem('clientRequests', JSON.stringify(updatedRequests));
-        
+      if (response.ok) {
+        setSuccess(true);
+        setReferenceNumber(data.referenceNumber);
         // Reset form
         setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          company: '',
-          country: '',
-          productInterest: '',
-          customProduct: '',
+          userName: '',
+          userEmail: '',
+          userPhone: '',
+          userCompany: '',
+          userDesignation: '',
+          userCountry: '',
+          userCity: '',
+          enquiryType: 'product',
+          subject: '',
+          message: '',
           quantity: '',
-          deliveryPort: '',
           targetPrice: '',
-          certifications: [],
-          message: ''
+          deliveryPort: '',
+          deliveryTerms: '',
+          paymentTerms: '',
+          productId: '',
+          productName: '',
+          newsletter: false
         });
-        
-        // Reset submitted state after 5 seconds
-        setTimeout(() => setSubmitted(false), 5000);
       } else {
-        alert('There was an error submitting your request. Please try again.');
+        setError(data.message || 'Failed to submit enquiry. Please try again.');
       }
-    } catch (error) {
-      console.error('Error submitting inquiry:', error);
-      
-      // Fallback to localStorage if API fails
-      const existingRequests = JSON.parse(localStorage.getItem('clientRequests') || '[]');
-      const newRequest = {
-        id: Date.now(),
-        ...formData,
-        timestamp: new Date().toISOString(),
-        status: 'pending'
-      };
-      const updatedRequests = [...existingRequests, newRequest];
-      localStorage.setItem('clientRequests', JSON.stringify(updatedRequests));
-      
-      setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 5000);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        company: '',
-        country: '',
-        productInterest: '',
-        customProduct: '',
-        quantity: '',
-        deliveryPort: '',
-        targetPrice: '',
-        certifications: [],
-        message: ''
-      });
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   };
-  const [expandedFaq, setExpandedFaq] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (requestedProduct) {
-      setFormType('product-request');
-      setFormData(prev => ({
-        ...prev,
-        productInterest: requestedProduct
-      }));
-    }
-  }, [requestedProduct]);
-
-  // ...existing code...
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    if (type === 'checkbox') {
-      setFormData(prev => ({
-        ...prev,
-        certifications: checked 
-          ? [...prev.certifications, value]
-          : prev.certifications.filter(cert => cert !== value)
-      }));
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
-    }
-  };
-
-  const contactInfo = [
-    {
-      icon: Mail,
-      title: 'Email Us',
-      details: ['export@indianharvest.com', 'sales@indianharvest.com'],
-      description: 'Get quotes within 24 hours'
-    },
-    {
-      icon: Phone,
-      title: 'Call Us',
-      details: ['+91 98765 43210', '+91 87654 32109'],
-      description: 'Mon-Sat: 9AM-6PM IST'
-    },
-    {
-      icon: MapPin,
-      title: 'Head Office',
-      details: ['Maharashtra, India'],
-      description: 'Export processing center'
-    },
-    {
-      icon: Globe,
-      title: 'Global Reach',
-      details: ['50+ Countries', '6 Continents'],
-      description: 'Worldwide shipping network'
-    }
-  ];
-
-  const certificationOptions = [
-    'ISO Certified',
-    'FSSAI Approved',
-    'Organic Certification',
-    'APEDA Registration',
-    'Halal Certified',
-    'Non-GMO',
-    'GlobalGAP',
-    'Fair Trade'
-  ];
-
-  const faqItems = [
-    {
-      question: 'Can you source any agricultural product from India?',
-      answer: 'Yes! We have an extensive network of farmers and suppliers across India. If you need a specific product not listed in our catalog, we can source it for you. Just tell us your requirements including quantity, quality specifications, and we will provide a competitive quote.'
-    },
-    {
-      question: 'What are your minimum order quantities?',
-      answer: 'MOQs vary by product type. For spices: typically 200-500kg. For grains and pulses: 1000kg minimum. For specialty items like saffron: as low as 1kg. We can accommodate smaller quantities for sample orders. Contact us with your specific needs.'
-    },
-    {
-      question: 'How long does shipping take?',
-      answer: 'Shipping time depends on destination and mode of transport. Sea freight: 15-45 days depending on destination. Air freight: 3-7 days for urgent orders. We handle all export documentation and customs clearance to ensure smooth delivery.'
-    },
-    {
-      question: 'Do you provide product samples?',
-      answer: 'Yes, we provide samples for quality evaluation before bulk orders. Sample quantities range from 100g to 1kg depending on the product. Shipping charges apply, which are adjustable against your final order value.'
-    },
-    {
-      question: 'What certifications do your products have?',
-      answer: 'Our products come with various certifications including ISO, FSSAI, Organic certification, APEDA registration, and more. We can also arrange specific certifications like Halal, Kosher, or Non-GMO based on your market requirements.'
-    },
-    {
-      question: 'What payment terms do you accept?',
-      answer: 'We accept Letter of Credit (LC), Telegraphic Transfer (TT/Wire), and for regular clients, we offer Documents Against Payment (DP) and Documents Against Acceptance (DA). Payment terms are negotiable based on order value and relationship.'
-    },
-    {
-      question: 'Can you do custom packaging and private labeling?',
-      answer: 'Absolutely! We offer custom packaging solutions including private labeling with your brand. We can pack in various sizes from retail packs (100g, 500g, 1kg) to bulk bags (25kg, 50kg). Minimum quantities apply for custom packaging.'
-    },
-    {
-      question: 'How do you ensure product quality?',
-      answer: 'Quality is our priority. All products undergo strict quality checks including physical, chemical, and microbiological testing. We maintain temperature-controlled storage and use proper fumigation. Third-party inspection services are available upon request.'
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-green-600 via-green-700 to-orange-600 py-20">
-        <div 
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: 'url("/images/contact-bg.jpg")',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        ></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl lg:text-6xl font-bold text-white mb-6">
-            Let's Start Your Import Journey
-          </h1>
-          <p className="text-xl text-green-50 max-w-3xl mx-auto">
-            Request any agricultural product from India. We source, process, and deliver worldwide with complete documentation.
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-12">
+        <div className="container mx-auto px-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Contact Us</h1>
+          <p className="text-lg text-gray-200">
+            Get in touch with our team for any enquiries or business opportunities
           </p>
         </div>
-      </section>
+      </div>
 
-      {/* Quick Contact Info */}
-      <section className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {contactInfo.map((info, index) => (
-              <Card key={index} className="text-center hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <info.icon className="w-7 h-7 text-orange-600" />
-                  </div>
-                  <h3 className="font-bold text-gray-900 mb-2">{info.title}</h3>
-                  <div className="space-y-1 mb-2">
-                    {info.details.map((detail, i) => (
-                      <p key={i} className="text-gray-700 font-medium">{detail}</p>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500">{info.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Form Selection Tabs */}
-      <section className="py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center space-x-4 mb-8">
-            <Button
-              onClick={() => setFormType('general')}
-              variant={formType === 'general' ? 'default' : 'outline'}
-              className={formType === 'general' ? 'bg-green-600 hover:bg-green-700' : ''}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              General Inquiry
-            </Button>
-            <Button
-              onClick={() => setFormType('product-request')}
-              variant={formType === 'product-request' ? 'default' : 'outline'}
-              className={formType === 'product-request' ? 'bg-orange-600 hover:bg-orange-700' : ''}
-            >
-              <Package className="w-4 h-4 mr-2" />
-              Request Product
-            </Button>
-          </div>
-
-          {/* Contact Form */}
-          <Card className="shadow-xl">
-            <CardContent className="p-8">
-              {submitted ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-10 h-10 text-green-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
-                  <p className="text-gray-600">We've received your inquiry and will respond within 24 hours.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      {formType === 'general' ? 'Get in Touch' : 'Request Agricultural Products'}
-                    </h2>
-                    <p className="text-gray-600 mt-2">
-                      {formType === 'general' 
-                        ? 'Send us your inquiry and we\'ll respond within 24 hours'
-                        : 'Tell us what you need - we can source any agricultural product from India'}
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Contact Information */}
+          <div className="lg:col-span-1">
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Get in Touch</CardTitle>
+                <CardDescription>
+                  We're here to help with your import/export needs
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start">
+                  <MapPin className="h-5 w-5 text-blue-600 mr-3 mt-1" />
+                  <div>
+                    <p className="font-medium">Head Office</p>
+                    <p className="text-sm text-gray-600">
+                      123 Trade Street, Business District<br />
+                      New York, NY 10001, USA
                     </p>
                   </div>
+                </div>
 
-                  {/* Basic Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        required
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        required
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        required
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        placeholder="+1 234 567 8900"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Company Name
-                      </label>
-                      <input
-                        type="text"
-                        name="company"
-                        value={formData.company}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                  </div>
-
+                <div className="flex items-start">
+                  <Phone className="h-5 w-5 text-blue-600 mr-3 mt-1" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Country *
-                    </label>
-                    <input
-                      type="text"
-                      name="country"
-                      required
-                      value={formData.country}
-                      onChange={handleInputChange}
-                      placeholder="e.g., United States, UAE, United Kingdom"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
+                    <p className="font-medium">Phone</p>
+                    <p className="text-sm text-gray-600">
+                      +1 (234) 567-8900<br />
+                      +1 (234) 567-8901
+                    </p>
                   </div>
+                </div>
 
-                  {/* Product-specific fields */}
-                  {formType === 'product-request' && (
-                    <>
+                <div className="flex items-start">
+                  <Mail className="h-5 w-5 text-blue-600 mr-3 mt-1" />
+                  <div>
+                    <p className="font-medium">Email</p>
+                    <p className="text-sm text-gray-600">
+                      info@croxy-exim.com<br />
+                      sales@croxy-exim.com
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <Clock className="h-5 w-5 text-blue-600 mr-3 mt-1" />
+                  <div>
+                    <p className="font-medium">Business Hours</p>
+                    <p className="text-sm text-gray-600">
+                      Monday - Friday: 9:00 AM - 6:00 PM<br />
+                      Saturday: 10:00 AM - 4:00 PM
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <Globe className="h-5 w-5 text-blue-600 mr-3 mt-1" />
+                  <div>
+                    <p className="font-medium">Global Presence</p>
+                    <p className="text-sm text-gray-600">
+                      Offices in 15+ countries worldwide
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Why Choose Us?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="text-sm">15+ Years of Experience</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="text-sm">Global Network of Partners</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="text-sm">24/7 Customer Support</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="text-sm">Competitive Pricing</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="text-sm">Quality Assured Products</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Enquiry Form */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Send Enquiry
+                </CardTitle>
+                <CardDescription>
+                  Fill out the form below and we'll get back to you within 24 hours
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {success ? (
+                  <Alert className="mb-6 border-green-200 bg-green-50">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      <strong>Thank you for your enquiry!</strong><br />
+                      We have received your message and will respond within 24 hours.<br />
+                      Your reference number is: <strong>{referenceNumber}</strong>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                      <Alert variant="destructive" className="mb-6">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Product Info (if from product page) */}
+                    {productName && (
+                      <Alert className="mb-6">
+                        <Package className="h-4 w-4" />
+                        <AlertDescription>
+                          Enquiring about: <strong>{productName}</strong>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Personal Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Product Category *
-                        </label>
-                        <select
-                          name="productInterest"
+                        <Label htmlFor="userName">Full Name *</Label>
+                        <Input
+                          id="userName"
+                          name="userName"
+                          value={formData.userName}
+                          onChange={handleChange}
                           required
-                          value={formData.productInterest}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        >
-                          <option value="">Select a category</option>
-                          {productsData.categories.map(cat => (
-                            <option key={cat.name} value={cat.name}>
-                              {cat.icon} {cat.name}
-                            </option>
-                          ))}
-                          <option value="Custom">🔧 Custom/Other Product</option>
-                        </select>
-                      </div>
-
-                      {formData.productInterest === 'Custom' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Describe Your Product Requirements *
-                          </label>
-                          <input
-                            type="text"
-                            name="customProduct"
-                            required
-                            value={formData.customProduct}
-                            onChange={handleInputChange}
-                            placeholder="e.g., Organic quinoa, Pink salt, Bamboo rice, etc."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                          />
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quantity Required *
-                          </label>
-                          <input
-                            type="text"
-                            name="quantity"
-                            required
-                            value={formData.quantity}
-                            onChange={handleInputChange}
-                            placeholder="e.g., 500 kg, 10 tons, 1 container"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Delivery Port/Location
-                          </label>
-                          <input
-                            type="text"
-                            name="deliveryPort"
-                            value={formData.deliveryPort}
-                            onChange={handleInputChange}
-                            placeholder="e.g., Port of Los Angeles, Dubai Port"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Target Price Range (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          name="targetPrice"
-                          value={formData.targetPrice}
-                          onChange={handleInputChange}
-                          placeholder="e.g., $500-700 per ton, Open to negotiation"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          placeholder="John Doe"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Required Certifications (Check all that apply)
-                        </label>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {certificationOptions.map(cert => (
-                            <label key={cert} className="flex items-center space-x-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                value={cert}
-                                checked={formData.certifications.includes(cert)}
-                                onChange={handleInputChange}
-                                className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                              />
-                              <span className="text-sm text-gray-700">{cert}</span>
-                            </label>
-                          ))}
-                        </div>
+                        <Label htmlFor="userEmail">Email Address *</Label>
+                        <Input
+                          id="userEmail"
+                          name="userEmail"
+                          type="email"
+                          value={formData.userEmail}
+                          onChange={handleChange}
+                          required
+                          placeholder="john@example.com"
+                        />
                       </div>
-                    </>
-                  )}
 
-                  {/* Message */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {formType === 'general' ? 'Your Message' : 'Additional Requirements'}
-                    </label>
-                    <textarea
-                      name="message"
-                      rows={4}
-                      value={formData.message}
-                      onChange={handleInputChange}
-                      placeholder={formType === 'general' 
-                        ? "Tell us about your import requirements..."
-                        : "Specify packaging preferences, quality standards, delivery timeline, payment terms, etc."}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
+                      <div>
+                        <Label htmlFor="userPhone">Phone Number *</Label>
+                        <Input
+                          id="userPhone"
+                          name="userPhone"
+                          type="tel"
+                          value={formData.userPhone}
+                          onChange={handleChange}
+                          required
+                          placeholder="+1 234 567 8900"
+                        />
+                      </div>
 
-                  {/* Info Box */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div className="text-sm text-blue-900">
-                        <p className="font-semibold mb-1">Quick Response Guarantee</p>
-                        <p>We respond to all inquiries within 24 hours with detailed quotations including pricing, shipping costs, and delivery timelines.</p>
+                      <div>
+                        <Label htmlFor="userCompany">Company Name</Label>
+                        <Input
+                          id="userCompany"
+                          name="userCompany"
+                          value={formData.userCompany}
+                          onChange={handleChange}
+                          placeholder="ABC Trading Co."
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="userDesignation">Designation</Label>
+                        <Input
+                          id="userDesignation"
+                          name="userDesignation"
+                          value={formData.userDesignation}
+                          onChange={handleChange}
+                          placeholder="Purchase Manager"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="userCountry">Country</Label>
+                        <Select
+                          value={formData.userCountry}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, userCountry: value }))}
+                        >
+                          <SelectTrigger id="userCountry">
+                            <SelectValue placeholder="Select Country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map(country => (
+                              <SelectItem key={country} value={country}>
+                                {country}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="userCity">City</Label>
+                        <Input
+                          id="userCity"
+                          name="userCity"
+                          value={formData.userCity}
+                          onChange={handleChange}
+                          placeholder="New York"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="enquiryType">Enquiry Type</Label>
+                        <Select
+                          value={formData.enquiryType}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, enquiryType: value }))}
+                        >
+                          <SelectTrigger id="enquiryType">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {enquiryTypes.map(type => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Submit Button */}
-                  <Button 
-                    type="submit" 
-                    size="lg" 
-                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                  >
-                    <Send className="w-5 h-5 mr-2" />
-                    {formType === 'general' ? 'Send Inquiry' : 'Request Product Quote'}
-                  </Button>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+                    {/* Enquiry Details */}
+                    <div>
+                      <Label htmlFor="subject">Subject</Label>
+                      <Input
+                        id="subject"
+                        name="subject"
+                        value={formData.subject}
+                        onChange={handleChange}
+                        placeholder="Brief subject of your enquiry"
+                      />
+                    </div>
 
-      {/* Why Choose Us */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Why Importers Choose Us
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Truck className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Complete Export Solution</h3>
-              <p className="text-gray-600">From sourcing to shipping, we handle everything including documentation, customs clearance, and logistics.</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Assurance</h3>
-              <p className="text-gray-600">All products are tested and certified. We provide complete traceability from farm to port.</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Dedicated Support</h3>
-              <p className="text-gray-600">Personal export manager for each client. 24/7 support throughout the import process.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+                    <div>
+                      <Label htmlFor="message">Message *</Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        value={formData.message}
+                        onChange={handleChange}
+                        required
+                        rows={5}
+                        placeholder="Please provide details about your requirements..."
+                      />
+                    </div>
 
-      {/* FAQ Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-4">
-            {faqItems.map((item, index) => (
-              <Card key={index} className="overflow-hidden">
-                <button
-                  onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                  <span className="font-semibold text-gray-900">{item.question}</span>
-                  {expandedFaq === index ? (
-                    <ChevronUp className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500" />
-                  )}
-                </button>
-                {expandedFaq === index && (
-                  <div className="px-6 pb-4">
-                    <p className="text-gray-600 leading-relaxed">{item.answer}</p>
-                  </div>
+                    {/* Additional Details for Product/Bulk Enquiries */}
+                    {(formData.enquiryType === 'product' || formData.enquiryType === 'bulk' || formData.enquiryType === 'quote') && (
+                      <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                        <h3 className="font-medium">Additional Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="quantity">Quantity Required</Label>
+                            <Input
+                              id="quantity"
+                              name="quantity"
+                              value={formData.quantity}
+                              onChange={handleChange}
+                              placeholder="e.g., 1000 units"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="targetPrice">Target Price</Label>
+                            <Input
+                              id="targetPrice"
+                              name="targetPrice"
+                              value={formData.targetPrice}
+                              onChange={handleChange}
+                              placeholder="e.g., $50 per unit"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="deliveryPort">Delivery Port</Label>
+                            <Input
+                              id="deliveryPort"
+                              name="deliveryPort"
+                              value={formData.deliveryPort}
+                              onChange={handleChange}
+                              placeholder="e.g., New York Port"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="deliveryTerms">Delivery Terms</Label>
+                            <Select
+                              value={formData.deliveryTerms}
+                              onValueChange={(value) => setFormData(prev => ({ ...prev, deliveryTerms: value }))}
+                            >
+                              <SelectTrigger id="deliveryTerms">
+                                <SelectValue placeholder="Select Terms" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="FOB">FOB</SelectItem>
+                                <SelectItem value="CIF">CIF</SelectItem>
+                                <SelectItem value="EXW">EXW</SelectItem>
+                                <SelectItem value="DDP">DDP</SelectItem>
+                                <SelectItem value="FCA">FCA</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <Label htmlFor="paymentTerms">Payment Terms</Label>
+                            <Input
+                              id="paymentTerms"
+                              name="paymentTerms"
+                              value={formData.paymentTerms}
+                              onChange={handleChange}
+                              placeholder="e.g., T/T 30% advance, 70% before shipment"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Newsletter Subscription */}
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="newsletter"
+                        name="newsletter"
+                        checked={formData.newsletter}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, newsletter: checked }))}
+                      />
+                      <Label 
+                        htmlFor="newsletter" 
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        Subscribe to our newsletter for latest products and offers
+                      </Label>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button 
+                      type="submit" 
+                      size="lg" 
+                      className="w-full"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>Sending...</>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-5 w-5" />
+                          Send Enquiry
+                        </>
+                      )}
+                    </Button>
+                  </form>
                 )}
-              </Card>
-            ))}
-          </div>
-          
-          <div className="mt-12 text-center">
-            <p className="text-gray-600 mb-4">Still have questions?</p>
-            <Button asChild>
-              <a href="mailto:export@indianharvest.com">
-                <Mail className="w-4 h-4 mr-2" />
-                Email Us Directly
-              </a>
-            </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Map Section */}
+      <div className="bg-gray-200 h-96">
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387190.2799160891!2d-74.25987368715491!3d40.697670064237676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQxJzUxLjYiTiA3NMKwMTUnMzUuNCJX!5e0!3m2!1sen!2sus!4v1635959051234!5m2!1sen!2sus"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          allowFullScreen=""
+          loading="lazy"
+          title="Office Location"
+        ></iframe>
+      </div>
     </div>
   );
 };

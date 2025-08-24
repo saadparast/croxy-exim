@@ -1,285 +1,280 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Check, 
-  X, 
-  Clock, 
-  Mail, 
-  Phone, 
-  Building, 
-  Globe, 
-  Package,
-  Calendar,
+  Package, 
+  Users, 
+  MessageSquare, 
   TrendingUp,
-  Users,
-  FileText,
-  Download,
-  Search,
-  Filter,
-  Eye,
+  Plus,
+  Edit,
   Trash2,
-  MessageSquare,
+  Eye,
+  Download,
   RefreshCw,
   LogOut,
-  AlertCircle,
+  Search,
+  Filter,
   CheckCircle,
-  XCircle
+  Clock,
+  XCircle,
+  Mail,
+  Phone,
+  Building,
+  Calendar,
+  FileText,
+  AlertCircle,
+  Shield,
+  Settings,
+  BarChart
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Badge } from '../components/ui/badge';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 const API_URL = 'http://localhost:3001/api';
 
 const Admin = () => {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState([]);
-  const [statistics, setStatistics] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    today: 0,
-    thisWeek: 0,
-    thisMonth: 0
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Login state
+  const [loginData, setLoginData] = useState({
+    email: 'admin@croxy-exim.com',
+    password: ''
   });
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [loginError, setLoginError] = useState('');
-  const [adminNote, setAdminNote] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+
+  // Dashboard stats
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalEnquiries: 0,
+    newEnquiries: 0,
+    totalUsers: 0,
+    enquiriesByStatus: [],
+    productsByCategory: [],
+    recentEnquiries: [],
+    topProducts: []
+  });
+
+  // Products state
+  const [products, setProducts] = useState([]);
+  const [productFormOpen, setProductFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  // Enquiries state
+  const [enquiries, setEnquiries] = useState([]);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+
+  // Users state
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      verifyToken(token);
-    } else {
-      setLoading(false);
-    }
+    checkAuth();
   }, []);
 
-  const verifyToken = async (token) => {
-    try {
-      const response = await fetch(`${API_URL}/admin/verify`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        setIsAuthenticated(true);
-        fetchRequests(token);
-        fetchStatistics(token);
-      } else {
-        localStorage.removeItem('adminToken');
-        setIsAuthenticated(false);
-      }
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      localStorage.removeItem('adminToken');
-      setIsAuthenticated(false);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDashboardStats();
+      fetchProducts();
+      fetchEnquiries();
+      fetchUsers();
     }
+  }, [isAuthenticated]);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      try {
+        const response = await fetch(`${API_URL}/auth/verify`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user.role === 'admin') {
+            setIsAuthenticated(true);
+            setUser(data.user);
+          } else {
+            localStorage.removeItem('adminToken');
+          }
+        } else {
+          localStorage.removeItem('adminToken');
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('adminToken');
+      }
+    }
+    setLoading(false);
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
-    
-    const formData = new FormData(e.target);
-    const username = formData.get('username');
-    const password = formData.get('password');
 
     try {
-      const response = await fetch(`${API_URL}/admin/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify(loginData)
       });
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.user.role === 'admin') {
         localStorage.setItem('adminToken', data.token);
         setIsAuthenticated(true);
-        fetchRequests(data.token);
-        fetchStatistics(data.token);
+        setUser(data.user);
       } else {
-        setLoginError('Invalid username or password');
+        setLoginError('Invalid credentials or insufficient permissions');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setLoginError('Failed to connect to server. Please try again.');
+      setLoginError('Login failed. Please try again.');
     }
   };
 
-  const fetchRequests = async (token = null) => {
-    const authToken = token || localStorage.getItem('adminToken');
-    
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    setUser(null);
+    navigate('/');
+  };
+
+  const fetchDashboardStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/inquiries`, {
+      const response = await fetch(`${API_URL}/admin/stats`, {
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
-
+      
       if (response.ok) {
         const data = await response.json();
-        setRequests(data.data || []);
+        setStats(data);
       }
     } catch (error) {
-      console.error('Failed to fetch requests:', error);
+      console.error('Error fetching stats:', error);
     }
   };
 
-  const fetchStatistics = async (token = null) => {
-    const authToken = token || localStorage.getItem('adminToken');
-    
+  const fetchProducts = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/statistics`, {
+      const response = await fetch(`${API_URL}/products?limit=100`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchEnquiries = async () => {
+    try {
+      const response = await fetch(`${API_URL}/enquiries`, {
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
-
+      
       if (response.ok) {
         const data = await response.json();
-        setStatistics(data.data || statistics);
+        setEnquiries(data.enquiries);
       }
     } catch (error) {
-      console.error('Failed to fetch statistics:', error);
+      console.error('Error fetching enquiries:', error);
     }
   };
 
-  const updateRequestStatus = async (id, status) => {
-    const token = localStorage.getItem('adminToken');
-    
+  const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/inquiries/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/admin/users`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const handleEnquiryStatusUpdate = async (enquiryId, newStatus) => {
+    try {
+      const response = await fetch(`${API_URL}/enquiries/${enquiryId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify({ status, note: adminNote })
+        body: JSON.stringify({ status: newStatus })
       });
 
       if (response.ok) {
-        fetchRequests();
-        fetchStatistics();
-        setAdminNote('');
-        setSelectedRequest(null);
+        fetchEnquiries();
+        fetchDashboardStats();
       }
     } catch (error) {
-      console.error('Failed to update request:', error);
+      console.error('Error updating enquiry status:', error);
     }
   };
 
-  const deleteRequest = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
-    
-    const token = localStorage.getItem('adminToken');
-    
-    try {
-      const response = await fetch(`${API_URL}/admin/inquiries/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+  const handleDeleteProduct = async (productId) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        const response = await fetch(`${API_URL}/products/${productId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          }
+        });
+
+        if (response.ok) {
+          fetchProducts();
+          fetchDashboardStats();
         }
-      });
-
-      if (response.ok) {
-        fetchRequests();
-        fetchStatistics();
-        setSelectedRequest(null);
+      } catch (error) {
+        console.error('Error deleting product:', error);
       }
-    } catch (error) {
-      console.error('Failed to delete request:', error);
-    }
-  };
-
-  const exportData = async () => {
-    const token = localStorage.getItem('adminToken');
-    
-    try {
-      const response = await fetch(`${API_URL}/admin/export`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `inquiries_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error('Failed to export data:', error);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchRequests();
-    await fetchStatistics();
-    setTimeout(() => setRefreshing(false), 500);
-  };
-
-  const filteredRequests = requests.filter(request => {
-    const matchesSearch = 
-      request.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.country?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'all' || request.status === filterStatus;
-    
-    return matchesSearch && matchesFilter;
-  });
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'rejected':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'new': return 'bg-blue-500';
+      case 'in-progress': return 'bg-yellow-500';
+      case 'responded': return 'bg-green-500';
+      case 'closed': return 'bg-gray-500';
+      case 'cancelled': return 'bg-red-500';
+      default: return 'bg-gray-400';
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-orange-600" />
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -287,49 +282,56 @@ const Admin = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader className="text-center pb-2">
-            <img 
-              src="https://page.gensparksite.com/v1/base64_upload/656480d8b8b69d5d843a3f68b4f58718" 
-              alt="Croxy Exim" 
-              className="h-20 mx-auto mb-4 object-contain"
-            />
-            <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
+            <CardTitle className="text-2xl">Admin Login</CardTitle>
+            <CardDescription>
+              Enter your credentials to access the admin dashboard
+            </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
+              {loginError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{loginError}</AlertDescription>
+                </Alert>
+              )}
+              
               <div>
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  type="text"
-                  name="username"
-                  placeholder="Enter username"
-                  defaultValue="admin"
+                  id="email"
+                  type="email"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   required
-                  className="mt-1"
                 />
               </div>
+              
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
-                  name="password"
-                  placeholder="Enter admin password"
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   required
-                  className="mt-1"
+                  placeholder="Enter admin password"
                 />
               </div>
-              {loginError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
-                  {loginError}
-                </div>
-              )}
-              <Button type="submit" className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800">
-                Login to Dashboard
+              
+              <Button type="submit" className="w-full">
+                Login
               </Button>
+              
+              <p className="text-sm text-center text-gray-600">
+                Admin Password: 707089081@MDsaad
+              </p>
             </form>
           </CardContent>
         </Card>
@@ -339,44 +341,20 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <img 
-                src="https://page.gensparksite.com/v1/base64_upload/656480d8b8b69d5d843a3f68b4f58718" 
-                alt="Croxy Exim" 
-                className="h-10 object-contain"
-              />
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+      {/* Admin Header */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <Shield className="h-6 w-6 text-blue-600 mr-2" />
+              <h1 className="text-xl font-bold">Admin Dashboard</h1>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                className={refreshing ? 'animate-spin' : ''}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportData}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
-              <Button 
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  localStorage.removeItem('adminToken');
-                  setIsAuthenticated(false);
-                }}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">
+                Welcome, {user?.firstName || user?.username || 'Admin'}
+              </span>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>
@@ -384,325 +362,439 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Inquiries</p>
-                  <p className="text-2xl font-bold">{statistics.total}</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-600">{statistics.pending}</p>
-                </div>
-                <Clock className="w-8 h-8 text-yellow-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">{statistics.approved}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Today</p>
-                  <p className="text-2xl font-bold text-orange-600">{statistics.today}</p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="enquiries">Enquiries</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
 
-        {/* Search and Filter */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Search by name, email, company, or country..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalProducts}</div>
+                  <p className="text-xs text-muted-foreground">Active products in catalog</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Enquiries</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalEnquiries}</div>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-green-600 font-medium">+{stats.newEnquiries}</span> this week
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                  <p className="text-xs text-muted-foreground">Registered customers</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalProducts > 0 
+                      ? Math.round((stats.totalEnquiries / stats.totalProducts) * 100) 
+                      : 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">Enquiry to product ratio</p>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant={filterStatus === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('all')}
-            >
-              All ({statistics.total})
-            </Button>
-            <Button
-              variant={filterStatus === 'pending' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('pending')}
-            >
-              Pending ({statistics.pending})
-            </Button>
-            <Button
-              variant={filterStatus === 'approved' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('approved')}
-            >
-              Approved ({statistics.approved})
-            </Button>
-            <Button
-              variant={filterStatus === 'rejected' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('rejected')}
-            >
-              Rejected ({statistics.rejected})
-            </Button>
-          </div>
-        </div>
 
-        {/* Inquiries List */}
-        <div className="grid gap-4">
-          {filteredRequests.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No inquiries found</p>
+            {/* Recent Enquiries */}
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Recent Enquiries</CardTitle>
+                <CardDescription>Latest customer enquiries requiring attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.recentEnquiries?.slice(0, 5).map((enquiry) => (
+                    <div key={enquiry.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">{enquiry.user_name}</span>
+                          <Badge className={getStatusColor(enquiry.status)}>
+                            {enquiry.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">{enquiry.user_email}</p>
+                        {enquiry.product_name && (
+                          <p className="text-sm text-gray-500">Product: {enquiry.product_name}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{enquiry.reference_number}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(enquiry.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
-          ) : (
-            filteredRequests.map((request) => (
-              <Card key={request.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="font-bold text-xl">{request.name}</h3>
-                        <Badge className={getStatusColor(request.status)}>
-                          <span className="flex items-center gap-1">
-                            {getStatusIcon(request.status)}
-                            {request.status || 'pending'}
-                          </span>
-                        </Badge>
-                        <Badge variant="outline">
-                          {request.inquiry_type === 'product-request' ? 'Product Request' : 'General Inquiry'}
+
+            {/* Top Products */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Products by Enquiries</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {stats.topProducts?.map((product) => (
+                      <div key={product.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{product.name}</p>
+                          <p className="text-sm text-gray-500">{product.category}</p>
+                        </div>
+                        <Badge variant="secondary">
+                          {product.enquiry_count} enquiries
                         </Badge>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
-                          <span>{request.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          <span>{request.phone || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Building className="w-4 h-4" />
-                          <span>{request.company || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4" />
-                          <span>{request.country || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4" />
-                          <span>{request.product_interest || request.custom_product || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>{format(new Date(request.created_at), 'MMM dd, yyyy HH:mm')}</span>
-                        </div>
-                      </div>
-                      
-                      {request.message && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                          <p className="text-sm text-gray-700">
-                            <strong>Message:</strong> {request.message}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {request.quantity && (
-                        <div className="mt-2 text-sm">
-                          <strong>Quantity:</strong> {request.quantity}
-                          {request.delivery_port && <span> | <strong>Port:</strong> {request.delivery_port}</span>}
-                          {request.target_price && <span> | <strong>Target Price:</strong> {request.target_price}</span>}
-                        </div>
-                      )}
-                      
-                      {request.certifications && (
-                        <div className="mt-2">
-                          <strong className="text-sm">Required Certifications:</strong>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {request.certifications.split(',').map((cert, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {cert.trim()}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelectedRequest(request)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => updateRequestStatus(request.id, 'approved')}
-                        className="bg-green-600 hover:bg-green-700"
-                        disabled={request.status === 'approved'}
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => updateRequestStatus(request.id, 'rejected')}
-                        disabled={request.status === 'rejected'}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteRequest(request.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Products by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {stats.productsByCategory?.map((cat) => (
+                      <div key={cat.category} className="flex items-center justify-between">
+                        <span className="capitalize">{cat.category}</span>
+                        <Badge variant="outline">{cat.count} products</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Products Tab */}
+          <TabsContent value="products" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Products Management</h2>
+              <Button onClick={() => navigate('/admin/product/new')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Origin</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Views</TableHead>
+                      <TableHead>Enquiries</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell>{product.origin_country}</TableCell>
+                        <TableCell>{product.price}</TableCell>
+                        <TableCell>
+                          <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
+                            {product.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{product.views}</TableCell>
+                        <TableCell>{product.enquiry_count}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/product/${product.id}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/admin/product/${product.id}/edit`)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteProduct(product.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Enquiries Tab */}
+          <TabsContent value="enquiries" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Enquiries Management</h2>
+              <Button variant="outline" onClick={fetchEnquiries}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enquiries.map((enquiry) => (
+                      <TableRow key={enquiry.id}>
+                        <TableCell className="font-medium">{enquiry.reference_number}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{enquiry.user_name}</p>
+                            <p className="text-sm text-gray-500">{enquiry.user_email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{enquiry.product_name || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{enquiry.enquiry_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={enquiry.status}
+                            onValueChange={(value) => handleEnquiryStatusUpdate(enquiry.id, value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="in-progress">In Progress</SelectItem>
+                              <SelectItem value="responded">Responded</SelectItem>
+                              <SelectItem value="quoted">Quoted</SelectItem>
+                              <SelectItem value="closed">Closed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(enquiry.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedEnquiry(enquiry)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Users Management</h2>
+              <Button variant="outline" onClick={fetchUsers}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Last Login</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.first_name} {user.last_name}
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.company || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {user.last_login 
+                            ? new Date(user.last_login).toLocaleDateString()
+                            : 'Never'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>System Settings</CardTitle>
+                <CardDescription>Configure system preferences and settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <Alert>
+                    <Settings className="h-4 w-4" />
+                    <AlertDescription>
+                      System settings are currently managed through environment variables.
+                      Contact your system administrator for changes.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div>
+                    <h3 className="font-medium mb-2">Export Data</h3>
+                    <div className="flex gap-4">
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Products
+                      </Button>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Enquiries
+                      </Button>
+                      <Button variant="outline">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Users
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Detail Modal */}
-      {selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Inquiry Details</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedRequest(null)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {/* Enquiry Detail Modal */}
+      {selectedEnquiry && (
+        <Dialog open={!!selectedEnquiry} onOpenChange={() => setSelectedEnquiry(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Enquiry Details - {selectedEnquiry.reference_number}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Name</Label>
-                  <p className="font-medium">{selectedRequest.name}</p>
+                  <Label>Customer Name</Label>
+                  <p className="font-medium">{selectedEnquiry.user_name}</p>
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <p className="font-medium">{selectedRequest.email}</p>
+                  <p className="font-medium">{selectedEnquiry.user_email}</p>
                 </div>
                 <div>
                   <Label>Phone</Label>
-                  <p className="font-medium">{selectedRequest.phone || 'N/A'}</p>
+                  <p className="font-medium">{selectedEnquiry.user_phone}</p>
                 </div>
                 <div>
                   <Label>Company</Label>
-                  <p className="font-medium">{selectedRequest.company || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label>Country</Label>
-                  <p className="font-medium">{selectedRequest.country || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Badge className={getStatusColor(selectedRequest.status)}>
-                    {selectedRequest.status || 'pending'}
-                  </Badge>
+                  <p className="font-medium">{selectedEnquiry.user_company || '-'}</p>
                 </div>
               </div>
               
               <div>
-                <Label>Product Interest</Label>
-                <p className="font-medium">{selectedRequest.product_interest || selectedRequest.custom_product || 'N/A'}</p>
+                <Label>Message</Label>
+                <p className="mt-1 p-3 bg-gray-50 rounded">{selectedEnquiry.message}</p>
               </div>
-              
-              {selectedRequest.message && (
-                <div>
-                  <Label>Message</Label>
-                  <p className="font-medium whitespace-pre-wrap">{selectedRequest.message}</p>
+
+              {selectedEnquiry.quantity && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Quantity</Label>
+                    <p className="font-medium">{selectedEnquiry.quantity}</p>
+                  </div>
+                  <div>
+                    <Label>Target Price</Label>
+                    <p className="font-medium">{selectedEnquiry.target_price || '-'}</p>
+                  </div>
                 </div>
               )}
-              
-              <div>
-                <Label>Add Note</Label>
-                <Textarea
-                  placeholder="Add an admin note..."
-                  value={adminNote}
-                  onChange={(e) => setAdminNote(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    updateRequestStatus(selectedRequest.id, 'approved');
-                  }}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Approve
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    updateRequestStatus(selectedRequest.id, 'rejected');
-                  }}
-                >
-                  Reject
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedRequest(null)}
-                >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
