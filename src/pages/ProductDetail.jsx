@@ -31,6 +31,7 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [currentImage, setCurrentImage] = useState('');
 
   useEffect(() => {
     const foundProduct = productsData.products.find(p => p.id === parseInt(id));
@@ -39,10 +40,10 @@ const ProductDetail = () => {
       const enhancedProduct = {
         ...foundProduct,
         images: [
-          `/images/${foundProduct.name.toLowerCase().replace(/\s+/g, '-')}-1.jpg`,
-          `/images/${foundProduct.name.toLowerCase().replace(/\s+/g, '-')}-2.jpg`,
-          `/images/${foundProduct.name.toLowerCase().replace(/\s+/g, '-')}-3.jpg`,
-          `/images/${foundProduct.name.toLowerCase().replace(/\s+/g, '-')}-4.jpg`
+          foundProduct.image,
+          `/images/${foundProduct.name.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}.jpg`,
+          `/images/${foundProduct.name.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}-2.jpg`,
+          `/images/${foundProduct.name.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}-3.jpg`
         ],
         manufacturingProcess: getManufacturingProcess(foundProduct.category),
         qualityChecks: [
@@ -299,6 +300,14 @@ const ProductDetail = () => {
     setShowInquiryModal(false);
   };
 
+  // Update current image when selected image changes
+  useEffect(() => {
+    if (product) {
+      const images = product.images || [product.image];
+      setCurrentImage(images[selectedImage] || '/images/placeholder.jpg');
+    }
+  }, [selectedImage, product]);
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -335,23 +344,37 @@ const ProductDetail = () => {
             {/* Image Gallery */}
             <div>
               <div className="relative h-96 bg-gray-100 rounded-lg overflow-hidden mb-4">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Camera className="w-20 h-20 text-gray-300" />
-                  <span className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded text-sm">
-                    Product Image {selectedImage + 1}
-                  </span>
-                </div>
+                <img
+                  src={currentImage}
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.target.src = '/images/placeholder.svg';
+                    e.target.onerror = null;
+                  }}
+                />
+                <span className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded text-sm">
+                  Product Image {selectedImage + 1}
+                </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((num, index) => (
+                {(product.images || [product.image]).map((img, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
                     className={`h-20 bg-gray-100 rounded border-2 ${
                       selectedImage === index ? 'border-orange-500' : 'border-transparent'
-                    } hover:border-orange-300 transition-colors flex items-center justify-center`}
+                    } hover:border-orange-300 transition-colors overflow-hidden`}
                   >
-                    <Camera className="w-8 h-8 text-gray-300" />
+                    <img
+                      src={img}
+                      alt={`${product.name} view ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/images/placeholder.svg';
+                        e.target.onerror = null;
+                      }}
+                    />
                   </button>
                 ))}
               </div>
