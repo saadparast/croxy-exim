@@ -1,14 +1,11 @@
 module.exports = {
   apps: [{
     name: 'indian-export-website',
-    script: 'node',
-    args: './server.js',
+    script: 'npx',
+    args: 'vite --host 0.0.0.0 --port 5173',
     cwd: '/home/user/webapp',
-    interpreter: 'node',
     env: {
-      NODE_ENV: 'development',
-      HOST: '0.0.0.0',
-      PORT: 5173
+      NODE_ENV: 'development'
     },
     watch: false,
     instances: 1,
