@@ -19,6 +19,13 @@ export default defineConfig({
       '127.0.0.1',
       '.e2b.dev', // Allow all e2b.dev subdomains
       '5173-iyhwpccrdbros8rldxj6z-6532622b.e2b.dev' // Specific sandbox host
-    ]
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 })

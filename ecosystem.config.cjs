@@ -1,23 +1,30 @@
 module.exports = {
-  apps: [{
-    name: 'indian-export-website',
-    script: 'node',
-    args: './server.js',
-    cwd: '/home/user/webapp',
-    interpreter: 'node',
-    env: {
-      NODE_ENV: 'development',
-      HOST: '0.0.0.0',
-      PORT: 5173
+  apps: [
+    {
+      name: 'croxy-frontend',
+      script: 'npx',
+      args: 'vite --host 0.0.0.0 --port 5173',
+      cwd: '/home/user/webapp',
+      env: {
+        NODE_ENV: 'development'
+      },
+      watch: false,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 1000
     },
-    watch: false,
-    instances: 1,
-    exec_mode: 'fork',
-    max_restarts: 10,
-    min_uptime: '10s',
-    error_file: '/home/user/webapp/logs/error.log',
-    out_file: '/home/user/webapp/logs/out.log',
-    log_file: '/home/user/webapp/logs/combined.log',
-    time: true
-  }]
+    {
+      name: 'croxy-backend',
+      script: 'server.js',
+      cwd: '/home/user/webapp/backend',
+      env: {
+        NODE_ENV: 'development',
+        PORT: 3001
+      },
+      watch: false,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 1000
+    }
+  ]
 };
