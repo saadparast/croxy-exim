@@ -187,8 +187,11 @@ const Contact = () => {
                   <div>
                     <p className="font-medium">Head Office</p>
                     <p className="text-sm text-gray-600">
-                      123 Trade Street, Business District<br />
-                      New York, NY 10001, USA
+                      Shop No. 220, 1st Floor,<br />
+                      Citi Mall, Building No.3,<br />
+                      New Link Road, Andheri,<br />
+                      MUMBAI (M. CORP),<br />
+                      MUMBAI - 400053
                     </p>
                   </div>
                 </div>
@@ -198,8 +201,8 @@ const Contact = () => {
                   <div>
                     <p className="font-medium">Phone</p>
                     <p className="text-sm text-gray-600">
-                      +1 (234) 567-8900<br />
-                      +1 (234) 567-8901
+                      +91 98765 43210<br />
+                      +91 87654 32109
                     </p>
                   </div>
                 </div>
@@ -209,8 +212,8 @@ const Contact = () => {
                   <div>
                     <p className="font-medium">Email</p>
                     <p className="text-sm text-gray-600">
-                      info@croxy-exim.com<br />
-                      sales@croxy-exim.com
+                      info@croxyexim.com<br />
+                      sales@croxyexim.com
                     </p>
                   </div>
                 </div>
@@ -558,13 +561,13 @@ const Contact = () => {
       {/* Map Section */}
       <div className="bg-gray-200 h-96">
         <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387190.2799160891!2d-74.25987368715491!3d40.697670064237676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQxJzUxLjYiTiA3NMKwMTUnMzUuNCJX!5e0!3m2!1sen!2sus!4v1635959051234!5m2!1sen!2sus"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3769.5646827317596!2d72.83173431490237!3d19.126739987066!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be7c9d90e067ba9%3A0x16268e5d6bca2e6a!2sCiti%20Mall%2C%20Andheri%20Link%20Road%2C%20Andheri%20West%2C%20Mumbai%2C%20Maharashtra%20400053!5e0!3m2!1sen!2sin!4v1635959051234!5m2!1sen!2sin"
           width="100%"
           height="100%"
           style={{ border: 0 }}
           allowFullScreen=""
           loading="lazy"
-          title="Office Location"
+          title="Office Location - Citi Mall, Andheri, Mumbai"
         ></iframe>
       </div>
     </div>

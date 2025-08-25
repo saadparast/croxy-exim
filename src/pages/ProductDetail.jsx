@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { getProductById, getRelatedProducts } from '../data/products';
 import { 
   Package, 
   MapPin, 
@@ -37,19 +38,21 @@ const ProductDetail = () => {
   const fetchProductDetails = async () => {
     setLoading(true);
     try {
-      // TODO: Implement product detail API in PHP
-      // const response = await fetch(`/api/products/${id}`);
-      // For now, return mock data
-      const response = { ok: false };
-      if (response.ok) {
-        const data = await response.json();
-        setProduct(data);
-        setRelatedProducts(data.relatedProducts || []);
-      } else if (response.status === 404) {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Get product from mock data
+      const productData = getProductById(id);
+      
+      if (productData) {
+        setProduct(productData);
+        setRelatedProducts(getRelatedProducts(id));
+      } else {
         navigate('/products');
       }
     } catch (error) {
       console.error('Error fetching product details:', error);
+      navigate('/products');
     } finally {
       setLoading(false);
     }
@@ -113,8 +116,8 @@ const ProductDetail = () => {
     );
   }
 
-  const defaultImage = '/api/placeholder/600/400';
-  const images = product.images && product.images.length > 0 ? product.images : [{ url: defaultImage }];
+  const defaultImage = '/images/placeholder.svg';
+  const images = product.images && product.images.length > 0 ? product.images : [defaultImage];
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -5,7 +5,7 @@ import './App.css';
 // Components
 import Header from './components/Header';
 import Footer from './components/Footer';
-import WhatsAppButton from './components/WhatsAppButton';
+import ContactButtons from './components/ContactButtons';
 
 // Pages
 import Home from './pages/Home';
@@ -39,7 +39,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
-        <WhatsAppButton />
+        <ContactButtons />
       </div>
     </Router>
   );

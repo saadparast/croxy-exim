@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { productsData } from '../data/products';
 import { 
   Package, 
   Filter,
@@ -66,25 +67,55 @@ const Products = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        limit: pagination.limit,
-        offset: pagination.offset,
-        ...(filters.search && { search: filters.search }),
-        ...(filters.category && { category: filters.category }),
-        ...(filters.country && { country: filters.country }),
-        sort: filters.sort,
-        order: filters.order
-      });
-
-      // TODO: Implement products API in PHP
-      // const response = await fetch(`/api/products?${params}`);
-      // For now, return mock data
-      const response = { ok: false };
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products);
-        setPagination(prev => ({ ...prev, total: data.total }));
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Filter products based on search and filters
+      let filteredProducts = [...productsData];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredProducts = filteredProducts.filter(product => 
+          product.name.toLowerCase().includes(searchLower) ||
+          product.description.toLowerCase().includes(searchLower) ||
+          product.subcategory.toLowerCase().includes(searchLower)
+        );
       }
+      
+      // Apply category filter
+      if (filters.category && filters.category !== 'all') {
+        filteredProducts = filteredProducts.filter(product => 
+          product.category === filters.category
+        );
+      }
+      
+      // Apply country filter
+      if (filters.country && filters.country !== 'all') {
+        filteredProducts = filteredProducts.filter(product => 
+          product.origin_country === filters.country
+        );
+      }
+      
+      // Sort products
+      filteredProducts.sort((a, b) => {
+        if (filters.sort === 'name') {
+          return filters.order === 'ASC' 
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        }
+        // Default to featured products first
+        return b.featured - a.featured;
+      });
+      
+      // Apply pagination
+      const paginatedProducts = filteredProducts.slice(
+        pagination.offset,
+        pagination.offset + pagination.limit
+      );
+      
+      setProducts(paginatedProducts);
+      setPagination(prev => ({ ...prev, total: filteredProducts.length }));
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -182,7 +213,7 @@ const Products = () => {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories.map(cat => (
                         <SelectItem key={cat.value} value={cat.value}>
                           {cat.label}
@@ -203,7 +234,7 @@ const Products = () => {
                       <SelectValue placeholder="All Countries" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Countries</SelectItem>
+                      <SelectItem value="all">All Countries</SelectItem>
                       {countries.map(country => (
                         <SelectItem key={country} value={country}>
                           {country}

@@ -107,7 +107,7 @@ const Footer = () => {
                 <Mail className="w-4 h-4 text-orange-500 mt-1 flex-shrink-0" />
                 <div>
                   <p className="text-sm text-gray-300">info@croxyexim.com</p>
-                  <p className="text-sm text-gray-300">exports@croxyexim.com</p>
+                  <p className="text-sm text-gray-300">sales@croxyexim.com</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
@@ -120,7 +120,9 @@ const Footer = () => {
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-orange-500 mt-1 flex-shrink-0" />
                 <p className="text-sm text-gray-300">
-                  Maharashtra, India
+                  Shop No. 220, 1st Floor,<br />
+                  Citi Mall, Andheri,<br />
+                  Mumbai - 400053
                 </p>
               </div>
             </div>
