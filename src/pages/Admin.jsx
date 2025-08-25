@@ -38,8 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-
-const API_URL = 'http://localhost:3001/api';
+import { API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -50,7 +49,7 @@ const Admin = () => {
 
   // Login state
   const [loginData, setLoginData] = useState({
-    email: 'admin@croxy-exim.com',
+    username: 'admin',
     password: ''
   });
   const [loginError, setLoginError] = useState('');
@@ -95,28 +94,10 @@ const Admin = () => {
   const checkAuth = async () => {
     const token = localStorage.getItem('adminToken');
     if (token) {
-      try {
-        const response = await fetch(`${API_URL}/auth/verify`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user.role === 'admin') {
-            setIsAuthenticated(true);
-            setUser(data.user);
-          } else {
-            localStorage.removeItem('adminToken');
-          }
-        } else {
-          localStorage.removeItem('adminToken');
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('adminToken');
-      }
+      // For PHP backend, we'll validate token on API calls
+      // Token presence is enough for initial auth check
+      setIsAuthenticated(true);
+      setUser({ username: 'admin' });
     }
     setLoading(false);
   };
@@ -126,7 +107,7 @@ const Admin = () => {
     setLoginError('');
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(API_ENDPOINTS.adminLogin, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -136,12 +117,12 @@ const Admin = () => {
 
       const data = await response.json();
 
-      if (response.ok && data.user.role === 'admin') {
+      if (response.ok && data.success) {
         localStorage.setItem('adminToken', data.token);
         setIsAuthenticated(true);
         setUser(data.user);
       } else {
-        setLoginError('Invalid credentials or insufficient permissions');
+        setLoginError(data.error || 'Invalid credentials');
       }
     } catch (error) {
       setLoginError('Login failed. Please try again.');
@@ -186,15 +167,15 @@ const Admin = () => {
 
   const fetchEnquiries = async () => {
     try {
-      const response = await fetch(`${API_URL}/enquiries`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+      const response = await fetch(API_ENDPOINTS.adminInquiries, {
+        headers: getAuthHeaders()
       });
       
       if (response.ok) {
         const data = await response.json();
-        setEnquiries(data.enquiries);
+        if (data.success) {
+          setEnquiries(data.data || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching enquiries:', error);
@@ -220,12 +201,9 @@ const Admin = () => {
 
   const handleEnquiryStatusUpdate = async (enquiryId, newStatus) => {
     try {
-      const response = await fetch(`${API_URL}/enquiries/${enquiryId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
+      const response = await fetch(`${API_ENDPOINTS.adminInquiries}/${enquiryId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
       });
 

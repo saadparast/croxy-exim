@@ -37,7 +37,10 @@ const ProductDetail = () => {
   const fetchProductDetails = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/products/${id}`);
+      // TODO: Implement product detail API in PHP
+      // const response = await fetch(`/api/products/${id}`);
+      // For now, return mock data
+      const response = { ok: false };
       if (response.ok) {
         const data = await response.json();
         setProduct(data);

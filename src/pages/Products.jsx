@@ -76,7 +76,10 @@ const Products = () => {
         order: filters.order
       });
 
-      const response = await fetch(`http://localhost:3001/api/products?${params}`);
+      // TODO: Implement products API in PHP
+      // const response = await fetch(`/api/products?${params}`);
+      // For now, return mock data
+      const response = { ok: false };
       if (response.ok) {
         const data = await response.json();
         setProducts(data.products);

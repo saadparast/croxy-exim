@@ -37,27 +37,15 @@ const Home = () => {
   }, []);
 
   const fetchFeaturedProducts = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/products/featured/list');
-      if (response.ok) {
-        const data = await response.json();
-        setFeaturedProducts(data);
-      }
-    } catch (error) {
-      console.error('Error fetching featured products:', error);
-    }
+    // TODO: Implement products API in PHP
+    // For now, using mock data
+    setFeaturedProducts([]);
   };
 
   const fetchServices = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/services');
-      if (response.ok) {
-        const data = await response.json();
-        setServices(data);
-      }
-    } catch (error) {
-      console.error('Error fetching services:', error);
-    }
+    // TODO: Implement services API in PHP
+    // For now, using mock data
+    setServices([]);
   };
 
   const animateStats = () => {

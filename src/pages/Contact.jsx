@@ -22,6 +22,7 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Checkbox } from '../components/ui/checkbox';
+import { API_ENDPOINTS } from '../config/api';
 
 const Contact = () => {
   const [searchParams] = useSearchParams();
@@ -96,12 +97,29 @@ const Contact = () => {
     setSuccess(false);
 
     try {
-      const response = await fetch('http://localhost:3001/api/enquiries', {
+      // Map form data to match PHP backend expectations
+      const inquiryData = {
+        name: formData.userName,
+        email: formData.userEmail,
+        phone: formData.userPhone,
+        company: formData.userCompany,
+        country: formData.userCountry,
+        productInterest: formData.productName || formData.subject,
+        customProduct: '',
+        quantity: formData.quantity,
+        deliveryPort: formData.deliveryPort,
+        targetPrice: formData.targetPrice,
+        certifications: [],
+        message: formData.message,
+        inquiryType: formData.enquiryType
+      };
+
+      const response = await fetch(API_ENDPOINTS.inquiries, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(inquiryData)
       });
 
       const data = await response.json();
